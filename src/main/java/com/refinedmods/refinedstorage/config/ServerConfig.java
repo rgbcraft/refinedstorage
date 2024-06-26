@@ -218,7 +218,8 @@ public class ServerConfig {
         }
 
         public int getCapacity() {
-            return capacity.get();
+//            return capacity.get();
+            return 32000;
         }
 
         public int getBaseUsage() {
@@ -680,7 +681,8 @@ public class ServerConfig {
         }
 
         public int getCapacity() {
-            return capacity.get();
+//            return capacity.get();
+            return 3200;
         }
 
         public int getOpenUsage() {
@@ -720,7 +722,8 @@ public class ServerConfig {
         }
 
         public int getCapacity() {
-            return capacity.get();
+//            return capacity.get();
+            return 3200;
         }
 
         public int getOpenUsage() {
@@ -760,7 +763,8 @@ public class ServerConfig {
         }
 
         public int getCapacity() {
-            return capacity.get();
+//            return capacity.get();
+            return 3200;
         }
 
         public int getOpenUsage() {
@@ -902,7 +906,8 @@ public class ServerConfig {
         }
 
         public int getCapacity() {
-            return capacity.get();
+//            return capacity.get();
+            return 3200;
         }
 
         public int getOpenUsage() {

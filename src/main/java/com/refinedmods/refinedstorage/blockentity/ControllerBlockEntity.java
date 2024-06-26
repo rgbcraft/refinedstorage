@@ -15,16 +15,23 @@ import com.refinedmods.refinedstorage.blockentity.data.BlockEntitySynchronizatio
 import com.refinedmods.refinedstorage.blockentity.data.BlockEntitySynchronizationSpec;
 import com.refinedmods.refinedstorage.blockentity.data.RSSerializers;
 import com.refinedmods.refinedstorage.capability.NetworkNodeProxyCapability;
+import ic2.api.energy.EnergyNet;
+import ic2.api.energy.tile.IEnergyEmitter;
+import ic2.api.energy.tile.IEnergySink;
+import ic2.core.IC2;
+import ic2.core.block.base.tiles.BaseTileEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.energy.IEnergyStorage;
+import net.minecraftforge.fml.util.thread.EffectiveSide;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -32,8 +39,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.ToIntFunction;
 
-public class ControllerBlockEntity extends BaseBlockEntity implements INetworkNodeProxy<RootNetworkNode>, IRedstoneConfigurable {
+public class ControllerBlockEntity extends BaseBlockEntity implements INetworkNodeProxy<RootNetworkNode>, IRedstoneConfigurable, IEnergySink {
     private static final Logger LOGGER = LogManager.getLogger();
 
     public static final BlockEntitySynchronizationParameter<Integer, ControllerBlockEntity> REDSTONE_MODE = RedstoneMode.createParameter();
@@ -55,6 +63,8 @@ public class ControllerBlockEntity extends BaseBlockEntity implements INetworkNo
     private INetwork removedNetwork;
     private Network dummyNetwork;
     private final LazyOptional<IEnergyStorage> energyProxyCap = LazyOptional.of(() -> getNetwork().getEnergyStorage());
+
+    private boolean loaded = false;
 
     public ControllerBlockEntity(NetworkType type, BlockPos pos, BlockState state) {
         super(type == NetworkType.CREATIVE ? RSBlockEntities.CREATIVE_CONTROLLER.get() : RSBlockEntities.CONTROLLER.get(), pos, state, SPEC);
@@ -175,5 +185,78 @@ public class ControllerBlockEntity extends BaseBlockEntity implements INetworkNo
         }
 
         return super.getCapability(cap, direction);
+    }
+
+    @Override
+    public int getSinkTier() {
+        return 3;
+    }
+
+    @Override
+    public int getRequestedEnergy() {
+        int max = getNetwork().getEnergyStorage().getMaxEnergyStored() - getNetwork().getEnergyStorage().getEnergyStored();
+        return Math.min(512, max / 4);
+    }
+
+    @Override
+    public int acceptEnergy(Direction direction, int amount, int voltage) {
+        int max = getNetwork().getEnergyStorage().getMaxEnergyStored() - getNetwork().getEnergyStorage().getEnergyStored();
+        int maxInput = Math.min(512, max);
+        if (amount <= maxInput && amount > 0) {
+            return amount - getNetwork().getEnergyStorage().receiveEnergy(amount * 4, false);
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
+    public boolean canAcceptEnergy(IEnergyEmitter iEnergyEmitter, Direction direction) {
+        return true;
+    }
+
+    private void onLoaded() {
+        this.loaded = true;
+        if (!level.isClientSide) {
+            EnergyNet.INSTANCE.addTile(this);
+        }
+    }
+
+    @Override
+    public void onLoad() {
+        super.onLoad();
+        if (!this.loaded) {
+            if (!level.isClientSide) {
+                IC2.TICK_HANDLER.addWorldCallback(this.getLevel(), world -> {
+                    if (!ControllerBlockEntity.this.isRemoved()) {
+                        ControllerBlockEntity.this.onLoaded();
+                    }
+                    return 0;
+                });
+            } else {
+                this.onLoaded();
+            }
+        }
+    }
+
+    @Override
+    public void onChunkUnloaded() {
+        if (this.loaded) {
+            this.loaded = false;
+            if (!level.isClientSide) {
+                EnergyNet.INSTANCE.removeTile(this);
+            }
+        }
+        super.onChunkUnloaded();
+    }
+
+    @Override
+    public void setRemoved() {
+        if (this.loaded) {
+            this.loaded = false;
+            if (!level.isClientSide) {
+                EnergyNet.INSTANCE.removeTile(this);
+            }
+        }
+        super.setRemoved();
     }
 }

@@ -1,10 +1,15 @@
 buildscript {
     repositories {
         maven { url = 'https://maven.minecraftforge.net' }
+        maven {
+            url = 'https://repo.spongepowered.org/repository/maven-public/'
+            content { includeGroup "org.spongepowered" }
+        }
         mavenCentral()
     }
     dependencies {
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+', changing: true
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
     }
 }
 
@@ -25,11 +30,19 @@ repositories {
     maven {
         url = "https://maven.theillusivec4.top/"
     }
+    maven {
+        name = "ModMaven"
+        url = "https://modmaven.dev"
+    }
+    maven { url "https://maven.shedaniel.me" }
+    maven { url "https://maven.architectury.dev" }
 }
 
 apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'eclipse'
+apply plugin: 'idea'
 apply plugin: 'maven-publish'
+apply plugin: 'org.spongepowered.mixin'
 
 group = 'com.refinedmods'
 archivesBaseName = 'refinedstorage'
@@ -47,6 +60,11 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 tasks.withType(JavaCompile) {
     options.compilerArgs << "-Xmaxerrs" << "999"
+}
+
+mixin {
+    add sourceSets.main, 'mixins.refinedstorage.refmap.json'
+    config 'mixins.refinedstorage.json'
 }
 
 minecraft {
@@ -102,13 +120,16 @@ processResources {
 }
 
 dependencies {
-    minecraft 'net.minecraftforge:forge:1.19.2-43.1.32'
+    minecraft 'net.minecraftforge:forge:1.19.2-43.4.0'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     compileOnly fg.deobf("mezz.jei:jei-1.19.2-common-api:11.3.0.262")
     compileOnly fg.deobf("mezz.jei:jei-1.19.2-forge-api:11.3.0.262")
     runtimeOnly fg.deobf("mezz.jei:jei-1.19.2-forge:11.3.0.262")
 
     compileOnly fg.deobf('curse.maven:mouse-tweaks-60089:3871353')
+
+    implementation fg.deobf("curse.maven:ic2-classic-242942:5230420")
 
     compileOnly fg.deobf('curse.maven:crafting-tweaks-233071:3914007')
 
